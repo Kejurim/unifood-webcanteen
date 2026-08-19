@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+
+{% block title %}Панель Администратора{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">🔑 Панель Администратора: Управление Меню</h1>
+
+<div class="row">
+    <div class="col-lg-12 mb-4">
+        <div class="card shadow-sm border-success">
+            <div class="card-header bg-success text-white">
+                <h4 class="mb-0">Добавить новую позицию</h4>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('admin_add_item') }}" class="row g-3">
+                    <div class="col-md-6">
+                        <label for="name" class="form-label">Название блюда</label>
+                        <input type="text" class="form-control" id="name" name="name" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="price" class="form-label">Цена (₸)</label>
+                        <input type="number" step="0.01" class="form-control" id="price" name="price" required min="1">
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button type="submit" class="btn btn-success w-100"><i class="bi bi-plus-circle"></i> Добавить</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-12">
+        <h3 class="mb-3">Текущее Меню</h3>
+        <ul class="list-group">
+            {% for item in menu %}
+            <li class="list-group-item d-flex justify-content-between align-items-center mb-2 shadow-sm">
+                <div class="flex-grow-1 me-3">
+                    <strong>{{ item.name }}</strong>
+                    <span class="badge bg-info ms-3">{{ "%.2f"|format(item.price) }} ₸</span>
+                </div>
+
+                <button type="button" class="btn btn-sm btn-primary me-2" data-bs-toggle="modal" data-bs-target="#editModal{{ item.id }}">
+                    <i class="bi bi-pencil"></i> Редактировать
+                </button>
+                <form method="POST" action="{{ url_for('admin_delete_item', item_id=item.id) }}" style="display:inline;">
+                    <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Вы уверены, что хотите удалить {{ item.name }}?')">
+                        <i class="bi bi-trash"></i> Удалить
+                    </button>
+                </form>
+
+                <div class="modal fade" id="editModal{{ item.id }}" tabindex="-1" aria-labelledby="editModalLabel{{ item.id }}" aria-hidden="true">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header bg-primary text-white">
+                                <h5 class="modal-title" id="editModalLabel{{ item.id }}">Редактировать позицию</h5>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <form method="POST" action="{{ url_for('admin_edit_item', item_id=item.id) }}">
+                                <div class="modal-body">
+                                    <div class="mb-3">
+                                        <label for="edit_name_{{ item.id }}" class="form-label">Название</label>
+                                        <input type="text" class="form-control" id="edit_name_{{ item.id }}" name="name" value="{{ item.name }}" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="edit_price_{{ item.id }}" class="form-label">Цена (₸)</label>
+                                        <input type="number" step="0.01" class="form-control" id="edit_price_{{ item.id }}" name="price" value="{{ '%.2f'|format(item.price) }}" required min="1">
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                                    <button type="submit" class="btn btn-primary">Сохранить</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+
+<h2 class="mt-4">Очередь</h2>
+
+<h4>В ожидании</h4>
+
+{% if queue_waiting %}
+  <table class="table table-striped align-middle">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Имя / клиент</th>
+        <th>Создан</th>
+        <th>Действия</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in queue_waiting %}
+        <tr>
+          <td>{{ item.id }}</td>
+          <td>{{ item.name or ("Гость #" ~ item.id) }}</td>
+          <td>{{ (item.created_at + timedelta(hours=5)).strftime("%d.%m %H:%M") }}</td>
+          <td class="d-flex gap-2">
+
+            <form method="post" action="{{ url_for('queue_mark_done', entry_id=item.id) }}">
+              <button type="submit" class="btn btn-sm btn-success">
+                Обслужен
+              </button>
+            </form>
+
+            <form method="post" action="{{ url_for('queue_delete', entry_id=item.id) }}">
+              <button type="submit" class="btn btn-sm btn-outline-danger"
+                      onclick="return confirm('Удалить запись из очереди?');">
+                Удалить
+              </button>
+            </form>
+
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  <p>В очереди никого нет 👌</p>
+{% endif %}
+
+<hr>
+
+<h4>Обслуженные (последние)</h4>
+
+{% if queue_done %}
+  <table class="table table-sm table-hover align-middle">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Имя / клиент</th>
+        <th>Время</th>
+        <th>Действия</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in queue_done %}
+        <tr>
+          <td>{{ item.id }}</td>
+          <td>{{ item.name or ("Гость #" ~ item.id) }}</td>
+          <td>{{ (item.created_at + timedelta(hours=5)).strftime("%d.%m %H:%M") }}</td>
+          <td>
+            <form method="post" action="{{ url_for('queue_restore', entry_id=item.id) }}">
+              <button type="submit" class="btn btn-sm btn-outline-secondary">
+                Вернуть в очередь
+              </button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  <p>Обслуженных клиентов пока нет.</p>
+{% endif %}
+
+
+{% endblock %}
